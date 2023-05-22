@@ -13,9 +13,7 @@ class LSPN(nn.Module):
         self.feature_dim = feature_dim = 64
         self.hidden_dim = hidden_dim = 64
 
-        # define ConvGRU cell
-        self.input_dim = output_dim     # use current depth
-        self.input_dim += feature_dim   # use context feature
+        self.input_dim = output_dim + feature_dim
         self.input_dim += 1             # use surface normal uncertainty (kappa)
 
         conv_gru_ks=5
@@ -25,7 +23,7 @@ class LSPN(nn.Module):
         self.ps = 5                     # propagation patch size
         self.pad = (self.ps - 1) // 2
 
-        d_dim = self.ps*self.ps
+        d_dim = self.ps**2
         h_dim = 128
         self.depth_head = nn.Sequential(
             nn.Conv2d(self.hidden_dim, h_dim, 3, padding=1), nn.ReLU(inplace=True),
@@ -44,27 +42,26 @@ class LSPN(nn.Module):
     def forward(self, h, pred_depth, input_dict, upsample_only=False):
         if upsample_only:
             return self.upsample_depth(pred_depth, h, input_dict)
-        else:
-            B, _, H, W = pred_depth.shape
-            x = self.prepare_input(pred_depth, input_dict)
-            h_new = self.gru(h, x)
+        B, _, H, W = pred_depth.shape
+        x = self.prepare_input(pred_depth, input_dict)
+        h_new = self.gru(h, x)
 
-            # get new depth
-            depth_prob = self.depth_head(h_new)                                                                         # (B, ps*ps, H, W)
-            depth_prob = torch.softmax(depth_prob, dim=1)                                                               # (B, ps*ps, H, W)
+        # get new depth
+        depth_prob = self.depth_head(h_new)                                                                         # (B, ps*ps, H, W)
+        depth_prob = torch.softmax(depth_prob, dim=1)                                                               # (B, ps*ps, H, W)
 
-            # get depth candidates
-            depth_candidate_weights = input_dict['depth_candidate_weights']                                             # (B, ps*ps, H, W)
+        # get depth candidates
+        depth_candidate_weights = input_dict['depth_candidate_weights']                                             # (B, ps*ps, H, W)
 
-            pred_depth_pad = F.pad(pred_depth[:, 0:1, :, :], pad=(self.pad, self.pad, self.pad, self.pad), mode='replicate')
-            pred_depth_unfold = F.unfold(pred_depth_pad, [self.ps, self.ps], dilation=1, padding=0)                     # (B, ps*ps, H*W)
-            pred_depth_unfold = pred_depth_unfold.view(B, self.ps*self.ps, H, W)                                        # (B, ps*ps, H, W)
-            new_depth_candidates = depth_candidate_weights * pred_depth_unfold                                          # (B, ps*ps, H, W)
+        pred_depth_pad = F.pad(pred_depth[:, 0:1, :, :], pad=(self.pad, self.pad, self.pad, self.pad), mode='replicate')
+        pred_depth_unfold = F.unfold(pred_depth_pad, [self.ps, self.ps], dilation=1, padding=0)                     # (B, ps*ps, H*W)
+        pred_depth_unfold = pred_depth_unfold.view(B, self.ps*self.ps, H, W)                                        # (B, ps*ps, H, W)
+        new_depth_candidates = depth_candidate_weights * pred_depth_unfold                                          # (B, ps*ps, H, W)
 
-            pred_depth = torch.sum(depth_prob * new_depth_candidates, dim=1, keepdim=True)                              # (B, 1, H, W)
+        pred_depth = torch.sum(depth_prob * new_depth_candidates, dim=1, keepdim=True)                              # (B, 1, H, W)
 
-            # upsample
-            up_pred_depth = self.upsample_depth(pred_depth, h_new, input_dict)
+        # upsample
+        up_pred_depth = self.upsample_depth(pred_depth, h_new, input_dict)
 
         return h_new, pred_depth, up_pred_depth
 
@@ -74,9 +71,7 @@ class LSPN(nn.Module):
         return upsample_depth_via_normal(pred_depth, up_mask, self.downsample_ratio, input_dict)
 
     def prepare_input(self, pred_depth, input_dict):
-        inputs = [pred_depth]
-        inputs.append(input_dict['feat'])
-        inputs.append(input_dict['pred_kappa_down'])
+        inputs = [pred_depth, input_dict['feat'], input_dict['pred_kappa_down']]
         return torch.cat(inputs, dim=1)
 
 

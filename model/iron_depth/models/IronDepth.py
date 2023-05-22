@@ -9,12 +9,18 @@ from model.iron_depth.models.submodules.Dr_submodules import LSPN
 # downsample the predicted norm, predicted kappa (surface normal confidence), and pos (ray with unit depth)
 def downsample(input_dict, size):
     for k in ['pred_norm', 'pred_kappa', 'pos']:
-        input_dict[k+'_down'] = F.interpolate(input_dict[k], size=size, mode='bilinear', align_corners=False)
+        input_dict[f'{k}_down'] = F.interpolate(
+            input_dict[k], size=size, mode='bilinear', align_corners=False
+        )
         # make sure to normalize
         if k == 'pred_norm':
-            norm = torch.sqrt(torch.sum(torch.square(input_dict[k+'_down']), dim=1, keepdim=True))
+            norm = torch.sqrt(
+                torch.sum(
+                    torch.square(input_dict[f'{k}_down']), dim=1, keepdim=True
+                )
+            )
             norm[norm < 1e-10] = 1e-10
-            input_dict[k+'_down'] = input_dict[k+'_down'] / norm
+            input_dict[f'{k}_down'] = input_dict[f'{k}_down'] / norm
     return input_dict
 
 
@@ -37,7 +43,7 @@ class IronDepth(nn.Module):
         self.dr_net = LSPN(args)
 
         self.ps = 5
-        self.center_idx = (self.ps * self.ps - 1) // 2
+        self.center_idx = (self.ps**2 - 1) // 2
 
         self.pad = (self.ps - 1) // 2
         self.irm_train_iter = args.train_iter             # 3
@@ -73,7 +79,7 @@ class IronDepth(nn.Module):
         # iterative refinement
         pred_list = [up_pred_dmap]
         N = self.irm_train_iter if mode == 'train' else self.irm_test_iter
-        for i in range(N):
+        for _ in range(N):
             h, pred_dmap, up_pred_dmap = self.dr_net(h, pred_dmap.detach(), input_dict)
             pred_list.append(up_pred_dmap)
             if 'input_depth' in input_dict and input_dict.get('fix_input_depth', False):

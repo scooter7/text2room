@@ -32,8 +32,4 @@ def scale_shift_linear(rendered_depth, predicted_depth, mask, fuse=True):
     fixed_disparity = (1 / predicted_depth) * AB[0] + AB[1]
     fixed_depth = 1 / fixed_disparity
 
-    if fuse:
-        fused_depth = torch.where(mask, rendered_depth, fixed_depth)
-        return fused_depth
-    else:
-        return fixed_depth
+    return torch.where(mask, rendered_depth, fixed_depth) if fuse else fixed_depth
