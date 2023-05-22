@@ -244,13 +244,12 @@ class Text2RoomPipeline(torch.nn.Module):
         return predicted_depth
 
     def depth_alignment(self, predicted_depth):
-        aligned_depth = depth_alignment.scale_shift_linear(
+        return depth_alignment.scale_shift_linear(
             rendered_depth=self.rendered_depth,
             predicted_depth=predicted_depth,
             mask=~self.inpaint_mask,
-            fuse=True)
-
-        return aligned_depth
+            fuse=True,
+        )
 
     def add_vertices_and_faces(self, predicted_depth):
         if self.inpaint_mask.sum() == 0:

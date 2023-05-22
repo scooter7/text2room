@@ -93,15 +93,14 @@ def clean_mesh(vertices: torch.Tensor, faces: torch.Tensor, colors: torch.Tensor
     # cleanup via open3d
     mesh.remove_unreferenced_vertices()
 
-    if fill_holes:
-        # misc cleanups via trimesh
-        mesh = o3d_to_trimesh(mesh)
-        mesh.process()
-        mesh.fill_holes()
-
-        return trimesh_to_torch(mesh, v=vertices, f=faces, c=colors)
-    else:
+    if not fill_holes:
         return o3d_mesh_to_torch(mesh, v=vertices, f=faces, c=colors)
+    # misc cleanups via trimesh
+    mesh = o3d_to_trimesh(mesh)
+    mesh.process()
+    mesh.fill_holes()
+
+    return trimesh_to_torch(mesh, v=vertices, f=faces, c=colors)
 
 
 def edge_threshold_filter(vertices, faces, edge_threshold=0.1):
@@ -417,7 +416,11 @@ def features_to_world_space_mesh(colors, depth, fov_in_degrees, world_to_cam, ma
             vertex_01[mask_upper_left]
         ], dim=0)  # (3, P)
         upper_left_face_id = torch.stack([upper_left_face_id]*3, dim=0)  # (3, P)
-        pix_to_face[0:3].scatter_(dim=1, index=flattened_pixel_coordinates_upper_left, src=upper_left_face_id)
+        pix_to_face[:3].scatter_(
+            dim=1,
+            index=flattened_pixel_coordinates_upper_left,
+            src=upper_left_face_id,
+        )
 
         # lower_right triangle
         flattened_pixel_coordinates_lower_right = torch.stack([

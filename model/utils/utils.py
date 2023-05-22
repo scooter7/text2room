@@ -99,7 +99,7 @@ def save_settings(args):
 
 
 def save_animation(image_folder_path, prefix=""):
-    gif_name = os.path.join(image_folder_path, prefix + 'animation.gif')
+    gif_name = os.path.join(image_folder_path, f'{prefix}animation.gif')
     images = [os.path.join(image_folder_path, img) for img in sorted(os.listdir(image_folder_path), key=lambda x: int(x.split(".")[0].split("_")[-1])) if "rgb" in img]
 
     with imageio.get_writer(gif_name, mode='I', duration=0.2) as writer:

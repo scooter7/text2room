@@ -79,9 +79,7 @@ def eulerAnglesToRotationMatrix(theta):
                     [0, 0, 1]
                     ])
 
-    R = np.dot(R_z, np.dot(R_y, R_x))
-
-    return R
+    return np.dot(R_z, np.dot(R_y, R_x))
 
 
 def apply_noise(poses, chunk_size=10, r_max=5.0, t_max=0.05):
@@ -94,11 +92,7 @@ def apply_noise(poses, chunk_size=10, r_max=5.0, t_max=0.05):
     nt = interpolate_noise(nt, chunk_size)
 
     for i, p in enumerate(poses):
-        if isinstance(p, torch.Tensor):
-            pose_numpy = p.cpu().detach().numpy()
-        else:
-            pose_numpy = p
-
+        pose_numpy = p.cpu().detach().numpy() if isinstance(p, torch.Tensor) else p
         # extract r, t
         r = pose_numpy[:3, :3]
         r = rotationMatrixToEulerAngles(r)

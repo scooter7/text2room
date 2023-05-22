@@ -17,8 +17,7 @@ class Encoder(nn.Module):
         features = [x]
         for k, v in self.original_model._modules.items():
             if (k == 'blocks'):
-                for ki, vi in v._modules.items():
-                    features.append(vi(features[-1]))
+                features.extend(vi(features[-1]) for ki, vi in v._modules.items())
             else:
                 features.append(v(features[-1]))
         return features

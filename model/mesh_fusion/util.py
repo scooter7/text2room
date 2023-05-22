@@ -19,8 +19,7 @@ def get_pixel_grids(height, width, reverse=False):
     x_coordinates = x_linspace.contiguous().view(-1)
     y_coordinates = y_linspace.contiguous().view(-1)
     ones = torch.ones(height * width)
-    indices_grid = torch.stack([x_coordinates,  y_coordinates, ones], dim=0)
-    return indices_grid
+    return torch.stack([x_coordinates,  y_coordinates, ones], dim=0)
 
 
 def img_to_pts(height, width, depth, K=torch.eye(3)):
@@ -47,7 +46,7 @@ def pts_to_image(pts, K, RT):
 
 def Screen_to_NDC(x, H, W):
     sampler = torch.clone(x)
-    sampler[0:1] = (sampler[0:1] / (W -1) * 2.0 -1.0) * (W - 1.0) / (H - 1.0)
+    sampler[:1] = (sampler[:1] / (W -1) * 2.0 - 1.0) * (W - 1.0) / (H - 1.0)
     sampler[1:2] = (sampler[1:2] / (H -1) * 2.0 -1.0)
     return sampler
 
@@ -56,10 +55,9 @@ def get_camera(world_to_cam, fov_in_degrees):
     # pytorch3d expects transforms as row-vectors, so flip rotation: https://github.com/facebookresearch/pytorch3d/issues/1183
     R = world_to_cam[:3, :3].t()[None, ...]
     T = world_to_cam[:3, 3][None, ...]
-    camera = FoVPerspectiveCameras(device=world_to_cam.device, R=R, T=T, fov=fov_in_degrees, degrees=True)
-    #K = get_pinhole_intrinsics_from_fov(H, W, fov_in_degrees).to(world_to_cam.device)[None]
-    #cameras = PerspectiveCameras(device=world_to_cam.device, R=R, T=T, in_ndc=False, K=K, image_size=torch.tensor([[H,W]]))
-    return camera
+    return FoVPerspectiveCameras(
+        device=world_to_cam.device, R=R, T=T, fov=fov_in_degrees, degrees=True
+    )
 
 
 def unproject_points(world_to_cam, fov_in_degrees, depth, H, W):
@@ -74,9 +72,7 @@ def unproject_points(world_to_cam, fov_in_degrees, depth, H, W):
     world_points = camera.unproject_points(xy_depth, world_coordinates=True, scaled_depth_input=False)
     #world_points = cameras.unproject_points(xy_depth, world_coordinates=True)
     world_points = world_points[0]
-    world_points = world_points.T
-
-    return world_points
+    return world_points.T
 
 
 def get_pinhole_intrinsics_from_fov(H, W, fov_in_degrees=55.0):
@@ -149,13 +145,12 @@ def o3d_pcd_to_torch(pcd, p=None, c=None):
 
 
 def torch_to_trimesh(vertices, faces, colors):
-    mesh = trimesh.base.Trimesh(
+    return trimesh.base.Trimesh(
         vertices=vertices.T.cpu().numpy(),
         faces=faces.T.cpu().numpy(),
         vertex_colors=(colors.T.cpu().numpy() * 255).astype(np.uint8),
-        process=False)
-
-    return mesh
+        process=False,
+    )
 
 
 def trimesh_to_torch(mesh: trimesh.base.Trimesh, v=None, f=None, c=None):

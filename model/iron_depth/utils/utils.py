@@ -52,7 +52,7 @@ def kappa_to_alpha_torch(pred_kappa):
 
 def make_ply_from_vertex_list(vertex_list):
     ply = ['ply', 'format ascii 1.0']
-    ply += ['element vertex {}'.format(len(vertex_list))]
+    ply += [f'element vertex {len(vertex_list)}']
     ply += ['property float x', 'property float y', 'property float z',
             'property float nx', 'property float ny', 'property float nz',
             'property uchar diffuse_red', 'property uchar diffuse_green', 'property uchar diffuse_blue']
@@ -88,12 +88,10 @@ def save_dmap_as_ply(img, dmap, pos, target_path):
     y = y[non_zero_idx]
     z = z[non_zero_idx]
 
-    # first ply: color-coded
-    vertex_list_rgb = []
-    for x_, y_, z_, r_, g_, b_ in zip(x, y, z, r, g, b):
-        if z_ > 1e-3:
-            vertex_list_rgb.append('{} {} {} 0 0 0 {} {} {}'.format(x_, y_, z_, r_, g_, b_))
-
-    ply_file_rgb = open(target_path, 'w')
-    ply_file_rgb.write(make_ply_from_vertex_list(vertex_list_rgb))
-    ply_file_rgb.close()
+    vertex_list_rgb = [
+        f'{x_} {y_} {z_} 0 0 0 {r_} {g_} {b_}'
+        for x_, y_, z_, r_, g_, b_ in zip(x, y, z, r, g, b)
+        if z_ > 1e-3
+    ]
+    with open(target_path, 'w') as ply_file_rgb:
+        ply_file_rgb.write(make_ply_from_vertex_list(vertex_list_rgb))
